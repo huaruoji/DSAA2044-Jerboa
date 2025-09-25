@@ -1,0 +1,66 @@
+name: Android CI Build
+
+# Events that trigger the workflow
+on:
+  # Trigger when code is pushed to the main branch
+  push:
+    branches: [ "main" ]
+  # Trigger when a Pull Request targets the main branch (recommended best practice)
+  pull_request:
+    branches: [ "main" ]
+
+# Define one or more jobs
+jobs:
+  build:
+    # Specify the virtual machine environment for this job
+    runs-on: ubuntu-latest
+
+    # Steps for the job
+    steps:
+      # Step 1: Check out the code
+      # Use the official actions/checkout@v4 to fetch your repository code
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # Step 2: Set up the JDK environment
+      # Android development typically requires a specific version of Java. JDK 17 is the modern standard for Android development
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      # Step 3: Set up Gradle cache
+      # This step is optional but highly recommended! It caches Gradle dependencies,
+      # significantly speeding up subsequent builds and saving time and resources.
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      # Step 4: Add execute permission for gradlew
+      # This is a common issue, especially when code is committed from a Windows development environment,
+      # where the Linux virtual machine may not have execute permissions.
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      # Step 5: Build Debug APK using Gradle
+      # ./gradlew assembleDebug is the standard command to package a Debug version APK
+      - name: Build with Gradle
+        run: ./gradlew assembleDebug
+
+      # Step 6: Upload build artifacts (APK file)
+      # This step packages and uploads the generated APK file, which you can download after the workflow finishes.
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          # Name of the uploaded file
+          name: Jerboa-Debug-APK
+          # Path to the file to be uploaded
+          # Note: This is the standard path for Android projects. If the Jerboa project has a custom structure, adjustments may be needed.
+          path: app/build/outputs/apk/debug/app-debug.apk
