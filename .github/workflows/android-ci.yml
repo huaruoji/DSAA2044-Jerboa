@@ -11,6 +11,10 @@ on:
   pull_request:
     branches: [ "main" ]
 
+# Get the necessary permissions for the workflow
+permissions:
+  contents: write
+
 # Define jobs
 jobs:
   # First job: build
