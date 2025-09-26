@@ -63,4 +63,4 @@ jobs:
           name: Jerboa-Debug-APK
           # Path to the file to be uploaded
           # Note: This is the standard path for Android projects. If the Jerboa project has a custom structure, adjustments may be needed.
-          path: app/build/outputs/apk/debug/*.apk
+          path: app/build/outputs/apk/debug/*.apk 
