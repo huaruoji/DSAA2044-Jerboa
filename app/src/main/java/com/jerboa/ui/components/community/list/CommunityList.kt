@@ -17,6 +17,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -35,12 +36,14 @@ fun CommunityListHeader(
     openDrawer: () -> Unit,
     search: String,
     onSearchChange: (search: String) -> Unit,
+    onSearchFocusChange: (Boolean) -> Unit = {},
 ) {
     TopAppBar(
         title = {
             CommunityTopBarSearchView(
                 search = search,
                 onSearchChange = onSearchChange,
+                onFocusChange = onSearchFocusChange,
             )
         },
         actions = {
@@ -124,6 +127,7 @@ fun CommunityListingsPreview() {
 fun CommunityTopBarSearchView(
     search: String,
     onSearchChange: (search: String) -> Unit,
+    onFocusChange: (Boolean) -> Unit = {},
 ) {
     TextField(
         value = search,
@@ -134,7 +138,10 @@ fun CommunityTopBarSearchView(
         },
         modifier =
             Modifier
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .onFocusChanged { focusState ->
+                    onFocusChange(focusState.isFocused)
+                },
         trailingIcon = {
             if (search.isNotEmpty()) {
                 IconButton(

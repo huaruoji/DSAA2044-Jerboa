@@ -79,6 +79,11 @@
     <string name="community_pending">Pending</string>
     <string name="community_sortBy">Sort by</string>
     <string name="community_subscribe">Subscribe</string>
+    <string name="search_history_title">Search History</string>
+    <string name="search_history_recent">Recent Searches</string>
+    <string name="search_history_clear">Clear All</string>
+    <string name="search_history_remove_item">Remove search item</string>
+    <string name="search_history_empty">No search history</string>
     <string name="community_users_month">%1$s users / month</string>
     <string name="crash_logs">Crash logs</string>
     <string name="crash_logs_all_deleted">All crash logs deleted</string>
