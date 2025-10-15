@@ -9,8 +9,10 @@ import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.jerboa.db.dao.AccountDao
 import com.jerboa.db.dao.AppSettingsDao
+import com.jerboa.db.dao.SearchHistoryDao
 import com.jerboa.db.entity.Account
 import com.jerboa.db.entity.AppSettings
+import com.jerboa.db.entity.SearchHistory
 import com.jerboa.toBool
 import com.jerboa.ui.theme.DEFAULT_FONT_SIZE
 import java.util.concurrent.Executors
@@ -75,14 +77,16 @@ val APP_SETTINGS_DEFAULT =
     )
 
 @Database(
-    version = 34,
-    entities = [Account::class, AppSettings::class],
+    version = 35,
+    entities = [Account::class, AppSettings::class, SearchHistory::class],
     exportSchema = true,
 )
 abstract class AppDB : RoomDatabase() {
     abstract fun accountDao(): AccountDao
 
     abstract fun appSettingsDao(): AppSettingsDao
+
+    abstract fun searchHistoryDao(): SearchHistoryDao
 
     companion object {
         @Volatile
