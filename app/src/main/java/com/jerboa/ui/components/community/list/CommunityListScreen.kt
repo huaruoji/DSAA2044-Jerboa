@@ -14,6 +14,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -21,9 +22,11 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jerboa.JerboaAppState
+import com.jerboa.JerboaApplication
 import com.jerboa.api.ApiState
 import com.jerboa.feat.BlurNSFW
 import com.jerboa.model.CommunityListViewModel
@@ -52,22 +55,23 @@ fun CommunityListScreen(
 ) {
     Log.d("jerboa", "got to community list screen")
 
+    // Get the search history repository from the application container
+    val context = LocalContext.current
+    val searchHistoryRepository = (context.applicationContext as JerboaApplication).container.searchHistoryRepository
+
     val communityListViewModel: CommunityListViewModel =
-        viewModel(factory = CommunityListViewModel.Companion.Factory(followList))
+        viewModel(
+            factory = CommunityListViewModel.Companion.Factory(
+                followList,
+                searchHistoryRepository,
+            ),
+        )
 
     var search by rememberSaveable { mutableStateOf("") }
     var searchFocused by remember { mutableStateOf(false) }
     
-    // Temporary dummy data for search history (will be replaced with database later)
-    val dummySearchHistory = remember {
-        listOf(
-            "Android Development",
-            "Kotlin",
-            "Jetpack Compose",
-            "Material Design",
-            "Room Database"
-        )
-    }
+    // Collect search history from the database
+    val searchHistory by communityListViewModel.searchHistory.collectAsState(initial = emptyList())
 
     // Upon launch from process death
     LaunchedEffect(Unit) {
@@ -128,7 +132,7 @@ fun CommunityListScreen(
                 Column {
                     // Search History Dropdown - shows when search bar is focused and empty
                     SearchHistoryDropdown(
-                        searchHistory = dummySearchHistory,
+                        searchHistory = searchHistory,
                         visible = searchFocused && search.isEmpty(),
                         onHistoryItemClick = { term ->
                             search = term
@@ -143,8 +147,8 @@ fun CommunityListScreen(
                             )
                         },
                         onClearHistory = {
-                            // TODO: Implement clear history when database is ready
-                            // For now, this is just a UI placeholder
+                            // Clear all search history from database
+                            communityListViewModel.clearSearchHistory()
                         },
                         modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                     )
