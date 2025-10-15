@@ -11,6 +11,7 @@ import com.jerboa.DEBOUNCE_DELAY
 import com.jerboa.api.API
 import com.jerboa.api.ApiState
 import com.jerboa.api.toApiState
+import com.jerboa.db.repository.SearchHistoryRepository
 import it.vercruysse.lemmyapi.datatypes.CommunityAggregates
 import it.vercruysse.lemmyapi.datatypes.CommunityFollowerView
 import it.vercruysse.lemmyapi.datatypes.CommunityView
@@ -20,14 +21,19 @@ import it.vercruysse.lemmyapi.dto.SearchType
 import it.vercruysse.lemmyapi.dto.SubscribedType
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 class CommunityListViewModel(
     communities: List<CommunityFollowerView>,
+    private val searchHistoryRepository: SearchHistoryRepository,
 ) : ViewModel() {
     var searchRes: ApiState<SearchResponse> by mutableStateOf(ApiState.Empty)
         private set
     private var fetchCommunitiesJob: Job? = null
+
+    // Expose search history as a Flow
+    val searchHistory: Flow<List<String>> = searchHistoryRepository.recentSearches
 
     fun searchCommunities(form: Search) {
         fetchCommunitiesJob?.cancel()
@@ -35,6 +41,32 @@ class CommunityListViewModel(
             delay(DEBOUNCE_DELAY)
             searchRes = ApiState.Loading
             searchRes = API.getInstance().search(form).toApiState()
+            
+            // Save search term to history if not empty
+            if (form.q.isNotBlank()) {
+                saveSearchTerm(form.q)
+            }
+        }
+    }
+
+    /**
+     * Save a search term to the database
+     * Automatically handles duplicates and timestamp updates
+     */
+    fun saveSearchTerm(term: String) {
+        if (term.isBlank()) return
+        
+        viewModelScope.launch {
+            searchHistoryRepository.insertTerm(term.trim())
+        }
+    }
+
+    /**
+     * Clear all search history from the database
+     */
+    fun clearSearchHistory() {
+        viewModelScope.launch {
+            searchHistoryRepository.clearAll()
         }
     }
 
@@ -82,12 +114,13 @@ class CommunityListViewModel(
     companion object {
         class Factory(
             private val followedCommunities: List<CommunityFollowerView>,
+            private val searchHistoryRepository: SearchHistoryRepository,
         ) : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(
                 modelClass: Class<T>,
                 extras: CreationExtras,
-            ): T = CommunityListViewModel(followedCommunities) as T
+            ): T = CommunityListViewModel(followedCommunities, searchHistoryRepository) as T
         }
     }
 }
