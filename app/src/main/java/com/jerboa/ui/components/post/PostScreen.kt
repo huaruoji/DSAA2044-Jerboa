@@ -14,6 +14,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Sort
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Text
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -460,6 +463,28 @@ fun PostScreen(
                                     swipeToActionPreset = swipeToActionPreset,
                                     disableVideoAutoplay = disableVideoAutoplay,
                                 )
+                            }
+
+                            item(key = "${postView.post.id}_summary_actions", contentType = "summary_actions") {
+                                Column(modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)) {
+                                    Button(
+                                        onClick = { postViewModel.onGenerateSummaryClicked() },
+                                        enabled = !postViewModel.isLoadingSummary,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text(text = stringResource(id = R.string.generate_summary))
+                                    }
+                                    if (postViewModel.isLoadingSummary) {
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        CircularProgressIndicator()
+                                    }
+                                    if (postViewModel.isSummaryVisible) {
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        SummaryCard(text = postViewModel.mockSummaryText)
+                                    }
+                                }
                             }
 
                             if (postViewModel.commentsRes.isLoading()) {
