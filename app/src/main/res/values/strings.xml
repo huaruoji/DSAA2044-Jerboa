@@ -510,4 +510,5 @@
     <string name="unmute">Unmute</string>
     <string name="play">Play</string>
     <string name="pause">Pause</string>
+    <string name="generate_summary">Generate Summary</string>
 </resources>

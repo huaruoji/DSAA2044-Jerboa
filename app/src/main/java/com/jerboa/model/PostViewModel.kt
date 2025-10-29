@@ -47,6 +47,7 @@ import it.vercruysse.lemmyapi.datatypes.SavePost
 import it.vercruysse.lemmyapi.dto.CommentSortType
 import it.vercruysse.lemmyapi.dto.ListingType
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 class PostViewModel(
     val id: Either<PostId, CommentId>,
@@ -75,8 +76,26 @@ class PostViewModel(
     val unExpandedComments = mutableStateListOf<CommentId>()
     val commentsWithToggledActionBar = mutableStateListOf<CommentId>()
 
+    // Summary UI state
+    var isLoadingSummary by mutableStateOf(false)
+        private set
+    var isSummaryVisible by mutableStateOf(false)
+        private set
+    var mockSummaryText by mutableStateOf("Lorem ipsum dolor sit amet...")
+        private set
+
     init {
         this.getData()
+    }
+
+    fun onGenerateSummaryClicked() {
+        viewModelScope.launch {
+            isSummaryVisible = false
+            isLoadingSummary = true
+            delay(2000)
+            isLoadingSummary = false
+            isSummaryVisible = true
+        }
     }
 
     fun updateSortType(sortType: CommentSortType) {
