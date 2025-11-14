@@ -48,6 +48,9 @@ import it.vercruysse.lemmyapi.dto.CommentSortType
 import it.vercruysse.lemmyapi.dto.ListingType
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import com.jerboa.ai.repository.AiSummarizationRepository
+import com.jerboa.ai.repository.SummarizationResult
+import com.jerboa.ui.components.post.CommentAnalysis
 
 class PostViewModel(
     val id: Either<PostId, CommentId>,
@@ -81,7 +84,37 @@ class PostViewModel(
         private set
     var isSummaryVisible by mutableStateOf(false)
         private set
-    var mockSummaryText by mutableStateOf("Lorem ipsum dolor sit amet...")
+    var summaryText by mutableStateOf("")
+        private set
+    var summaryError by mutableStateOf<String?>(null)
+        private set
+    
+    private val aiRepository = AiSummarizationRepository.getInstance()
+
+    // Comment Analysis UI state
+    var isLoadingAnalysis by mutableStateOf(false)
+        private set
+    var isAnalysisVisible by mutableStateOf(false)
+        private set
+    var mockAnalysis by mutableStateOf(
+        CommentAnalysis(
+            mainThemes = listOf(
+                "Discussion about implementation details",
+                "Performance considerations",
+                "User experience feedback",
+            ),
+            agreements = listOf(
+                "Most users agree on the core approach",
+                "The proposed solution addresses the main concerns",
+                "The design is intuitive and user-friendly",
+            ),
+            disagreements = listOf(
+                "Some users prefer a different API structure",
+                "There's debate about the optimal data format",
+                "Mixed opinions on the priority of features",
+            ),
+        ),
+    )
         private set
 
     init {
@@ -90,11 +123,53 @@ class PostViewModel(
 
     fun onGenerateSummaryClicked() {
         viewModelScope.launch {
+            // Get the current post data
+            val currentPost = when (val res = postRes) {
+                is ApiState.Success -> res.data.post_view.post
+                else -> {
+                    summaryError = "Post data not available"
+                    return@launch
+                }
+            }
+            
+            // Reset states
             isSummaryVisible = false
+            summaryError = null
             isLoadingSummary = true
-            delay(2000)
+            
+            // Make AI API call
+            when (val result = aiRepository.summarizePost(currentPost.name, currentPost.body)) {
+                is SummarizationResult.Success -> {
+                    summaryText = result.summary
+                    isSummaryVisible = true
+                    summaryError = null
+                }
+                is SummarizationResult.Error -> {
+                    summaryError = result.message
+                    isSummaryVisible = false
+                }
+                is SummarizationResult.NetworkError -> {
+                    summaryError = "Network error. Please check your internet connection and try again."
+                    isSummaryVisible = false
+                }
+                is SummarizationResult.RateLimitError -> {
+                    summaryError = "Rate limit exceeded. Please try again later."
+                    isSummaryVisible = false
+                }
+            }
+            
             isLoadingSummary = false
-            isSummaryVisible = true
+        }
+
+    }
+
+    fun onAnalyzeCommentsClicked() {
+        viewModelScope.launch {
+            isAnalysisVisible = false
+            isLoadingAnalysis = true
+            delay(2000)
+            isLoadingAnalysis = false
+            isAnalysisVisible = true
         }
     }
 
