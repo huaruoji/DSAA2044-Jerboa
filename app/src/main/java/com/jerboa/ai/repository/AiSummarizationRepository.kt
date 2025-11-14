@@ -4,9 +4,9 @@ import com.jerboa.ai.api.SiliconFlowApiClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class AiSummarizationRepository {
-    
-    private val siliconFlowClient = SiliconFlowApiClient()
+class AiSummarizationRepository(
+    private val siliconFlowClient: SiliconFlowApiClient = SiliconFlowApiClient(),
+) {
     
     suspend fun generatePostSummary(postTitle: String, postBody: String): Result<String> {
         return withContext(Dispatchers.IO) {

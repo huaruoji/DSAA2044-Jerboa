@@ -1,20 +1,46 @@
 package com.jerboa.ai.repository
 
 import com.google.common.truth.Truth.assertThat
+import com.jerboa.ai.api.SiliconFlowApiClient
 import kotlinx.coroutines.test.runTest
+import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import org.mockito.kotlin.any
+import org.mockito.kotlin.doNothing
+import org.mockito.kotlin.mock
+import org.mockito.kotlin.verify
+import org.mockito.kotlin.whenever
 
+/**
+ * Unit tests for AiSummarizationRepository.
+ * 
+ * These tests use dependency injection to mock the SiliconFlowApiClient,
+ * allowing tests to run without requiring an actual API key.
+ */
 class AiSummarizationRepositoryTest {
 
+    private lateinit var mockApiClient: SiliconFlowApiClient
     private lateinit var repository: AiSummarizationRepository
 
     @Before
     fun setUp() {
-        // Note: This test requires refactoring AiSummarizationRepository
-        // to accept SiliconFlowApiClient as a constructor parameter for testability
-        // For now, we test the validation logic that doesn't require mocking
-        repository = AiSummarizationRepository()
+        // Create a mock API client
+        mockApiClient = mock()
+        // Mock the close() method to do nothing
+        doNothing().whenever(mockApiClient).close()
+        // Create repository with mocked API client
+        repository = AiSummarizationRepository(mockApiClient)
+    }
+
+    @After
+    fun tearDown() {
+        // Clean up if needed
+        try {
+            repository.cleanup()
+        } catch (e: Exception) {
+            // Ignore cleanup errors in tests
+        }
     }
 
     @Test
@@ -29,6 +55,7 @@ class AiSummarizationRepositoryTest {
         // Assert
         assertThat(result.isFailure).isTrue()
         result.onFailure { error ->
+            assertThat(error.message).isNotNull()
             assertThat(error.message).contains("empty")
         }
     }
@@ -40,15 +67,20 @@ class AiSummarizationRepositoryTest {
         val body = "Test post body content"
         val expectedSummary = "This is a test summary"
 
-        // Mock the API client response
-        // coEvery { mockApiClient.generateSummary(any(), any()) } returns Result.success(expectedSummary)
+        // Mock the API client to return success
+        whenever(mockApiClient.generateSummary(any(), any()))
+            .thenReturn(Result.success(expectedSummary))
 
         // Act
         val result = repository.generatePostSummary(title, body)
 
         // Assert
-        // coVerify { mockApiClient.generateSummary(title, body) }
-        // After refactoring, we can verify the API was called correctly
+        assertThat(result.isSuccess).isTrue()
+        result.onSuccess { summary ->
+            assertThat(summary).isEqualTo(expectedSummary)
+        }
+        // Verify API client was called with processed parameters
+        verify(mockApiClient).generateSummary("Test Post Title", "Test post body content")
     }
 
     @Test
@@ -56,13 +88,19 @@ class AiSummarizationRepositoryTest {
         // Arrange
         val title = "  Test Title  "
         val body = "  Test Body  "
+        val expectedSummary = "Summary"
+
+        // Mock the API client
+        whenever(mockApiClient.generateSummary(any(), any()))
+            .thenReturn(Result.success(expectedSummary))
 
         // Act
         val result = repository.generatePostSummary(title, body)
 
         // Assert
+        assertThat(result.isSuccess).isTrue()
         // Verify that trimmed values are passed to API
-        // This tests the input sanitization logic
+        verify(mockApiClient).generateSummary("Test Title", "Test Body")
     }
 
     @Test
@@ -70,13 +108,21 @@ class AiSummarizationRepositoryTest {
         // Arrange
         val title = "Test Title"
         val body = ""
+        val expectedSummary = "Summary"
+
+        // Mock the API client
+        whenever(mockApiClient.generateSummary(any(), any()))
+            .thenReturn(Result.success(expectedSummary))
 
         // Act
         val result = repository.generatePostSummary(title, body)
 
         // Assert
-        // Verify that when body is empty, title is used as body
-        // This tests the fallback logic at line 25
+        assertThat(result.isSuccess).isTrue()
+        // Verify that when body is empty, title is used as body (fallback logic)
+        // effectiveTitle = cleanTitle (since it's not empty) = "Test Title"
+        // effectiveBody = cleanTitle (since cleanBody is empty) = "Test Title"
+        verify(mockApiClient).generateSummary("Test Title", "Test Title")
     }
 
     @Test
@@ -84,13 +130,19 @@ class AiSummarizationRepositoryTest {
         // Arrange
         val title = ""
         val body = "Test body content"
+        val expectedSummary = "Summary"
+
+        // Mock the API client
+        whenever(mockApiClient.generateSummary(any(), any()))
+            .thenReturn(Result.success(expectedSummary))
 
         // Act
         val result = repository.generatePostSummary(title, body)
 
         // Assert
+        assertThat(result.isSuccess).isTrue()
         // Verify that "Post Summary" is used as title when title is empty
-        // This tests the fallback logic at line 24
+        verify(mockApiClient).generateSummary("Post Summary", "Test body content")
     }
 
     @Test
@@ -100,8 +152,9 @@ class AiSummarizationRepositoryTest {
         val body = "Test Body"
         val exception = Exception("Network error")
 
-        // Mock API to throw exception
-        // coEvery { mockApiClient.generateSummary(any(), any()) } throws exception
+        // Mock API to return failure
+        whenever(mockApiClient.generateSummary(any(), any()))
+            .thenReturn(Result.failure(exception))
 
         // Act
         val result = repository.generatePostSummary(title, body)
@@ -109,7 +162,9 @@ class AiSummarizationRepositoryTest {
         // Assert
         assertThat(result.isFailure).isTrue()
         result.onFailure { error ->
-            assertThat(error).isEqualTo(exception)
+            assertThat(error).isNotNull()
+            assertThat(error.message).isNotNull()
+            assertThat(error.message).contains("Network error")
         }
     }
 
@@ -121,7 +176,8 @@ class AiSummarizationRepositoryTest {
         val expectedSummary = "This is the generated summary"
 
         // Mock successful API response
-        // coEvery { mockApiClient.generateSummary(any(), any()) } returns Result.success(expectedSummary)
+        whenever(mockApiClient.generateSummary(any(), any()))
+            .thenReturn(Result.success(expectedSummary))
 
         // Act
         val result = repository.generatePostSummary(title, body)
@@ -129,8 +185,47 @@ class AiSummarizationRepositoryTest {
         // Assert
         assertThat(result.isSuccess).isTrue()
         result.onSuccess { summary ->
+            assertThat(summary).isNotNull()
             assertThat(summary).isEqualTo(expectedSummary)
         }
     }
-}
 
+    @Test
+    fun `generatePostSummary handles both title and body empty with whitespace`() = runTest {
+        // Arrange
+        val title = "   "
+        val body = "   "
+
+        // Act
+        val result = repository.generatePostSummary(title, body)
+
+        // Assert
+        assertThat(result.isFailure).isTrue()
+        result.onFailure { error ->
+            assertThat(error.message).isNotNull()
+            assertThat(error.message).contains("empty")
+        }
+    }
+
+    @Test
+    fun `generatePostSummary handles API client throwing exception`() = runTest {
+        // Arrange
+        val title = "Test Title"
+        val body = "Test Body"
+        val exception = RuntimeException("API connection failed")
+
+        // Mock API to throw exception
+        whenever(mockApiClient.generateSummary(any(), any()))
+            .thenThrow(exception)
+
+        // Act
+        val result = repository.generatePostSummary(title, body)
+
+        // Assert
+        assertThat(result.isFailure).isTrue()
+        result.onFailure { error ->
+            assertThat(error).isNotNull()
+            assertThat(error.message).isNotNull()
+        }
+    }
+}
