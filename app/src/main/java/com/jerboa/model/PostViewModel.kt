@@ -49,10 +49,13 @@ import it.vercruysse.lemmyapi.dto.ListingType
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 import com.jerboa.ui.components.post.CommentAnalysis
+import com.jerboa.ai.repository.AiSummarizationRepository
 
 class PostViewModel(
     val id: Either<PostId, CommentId>,
 ) : ViewModel() {
+    
+    private val aiRepository = AiSummarizationRepository()
     var postRes: ApiState<GetPostResponse> by mutableStateOf(ApiState.Empty)
         private set
 
@@ -82,7 +85,9 @@ class PostViewModel(
         private set
     var isSummaryVisible by mutableStateOf(false)
         private set
-    var mockSummaryText by mutableStateOf("Lorem ipsum dolor sit amet...")
+    var summaryText by mutableStateOf("")
+        private set
+    var summaryError by mutableStateOf<String?>(null)
         private set
 
     // Comment Analysis UI state
@@ -117,11 +122,37 @@ class PostViewModel(
 
     fun onGenerateSummaryClicked() {
         viewModelScope.launch {
+            val postView = (postRes as? ApiState.Success)?.data?.post_view
+            if (postView == null) {
+                summaryError = "Unable to load post content for summarization"
+                return@launch
+            }
+            
             isSummaryVisible = false
             isLoadingSummary = true
-            delay(2000)
-            isLoadingSummary = false
-            isSummaryVisible = true
+            summaryError = null
+            
+            try {
+                val title = postView.post.name ?: ""
+                val body = postView.post.body ?: ""
+                
+                val result = aiRepository.generatePostSummary(title, body)
+                
+                result.fold(
+                    onSuccess = { summary ->
+                        summaryText = summary
+                        isLoadingSummary = false
+                        isSummaryVisible = true
+                    },
+                    onFailure = { error ->
+                        summaryError = error.message ?: "Failed to generate summary"
+                        isLoadingSummary = false
+                    }
+                )
+            } catch (e: Exception) {
+                summaryError = "An unexpected error occurred: ${e.message}"
+                isLoadingSummary = false
+            }
         }
     }
 
@@ -483,6 +514,11 @@ class PostViewModel(
             }
             else -> {}
         }
+    }
+    
+    override fun onCleared() {
+        super.onCleared()
+        aiRepository.cleanup()
     }
 
     companion object {

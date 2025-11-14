@@ -1,6 +1,7 @@
 @file:Suppress("UnstableApiUsage")
 
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 
 plugins {
@@ -39,6 +40,21 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        
+        // Load API keys from local.properties
+        val localProperties = Properties()
+        val localPropertiesFile = rootProject.file("local.properties")
+        if (localPropertiesFile.exists()) {
+            localPropertiesFile.inputStream().use { inputStream ->
+                localProperties.load(inputStream)
+            }
+        }
+        
+        buildConfigField("String", "SILICONFLOW_API_KEY", "\"${localProperties.getProperty("siliconflow.api.key") ?: ""}\"")
+    }
+    
+    buildFeatures {
+        buildConfig = true
     }
 
     lint {
@@ -82,14 +98,9 @@ android {
                 signingConfig = signingConfigs.getByName("release")
             }
 
-            // Keep using until AGP 9.0 then research proguard rules to retain debug info for stack traces
-            postprocessing {
-                isRemoveUnusedCode = true
-                isObfuscate = false
-                isOptimizeCode = true
-                isRemoveUnusedResources = true
-                proguardFiles("proguard-rules.pro")
-            }
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
         debug {
             applicationIdSuffix = ".debug"
@@ -101,6 +112,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     buildFeatures {
+        buildConfig = true
         compose = true
     }
     // Match build tools with CI image
@@ -213,4 +225,10 @@ dependencies {
 
     // For custom logging plugin
     implementation("io.ktor:ktor-client-logging:3.3.0")
+
+    // HTTP client dependencies for SiliconFlow API
+    implementation("io.ktor:ktor-client-core:3.3.0")
+    implementation("io.ktor:ktor-client-android:3.3.0")
+    implementation("io.ktor:ktor-client-content-negotiation:3.3.0")
+    implementation("io.ktor:ktor-serialization-kotlinx-json:3.3.0")
 }
