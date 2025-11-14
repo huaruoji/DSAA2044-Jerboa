@@ -482,7 +482,11 @@ fun PostScreen(
                                     }
                                     if (postViewModel.isSummaryVisible) {
                                         Spacer(modifier = Modifier.height(12.dp))
-                                        SummaryCard(text = postViewModel.mockSummaryText)
+                                        SummaryCard(text = postViewModel.summaryText)
+                                    }
+                                    postViewModel.summaryError?.let { error ->
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        ErrorCard(text = error)
                                     }
                                 }
                             }
