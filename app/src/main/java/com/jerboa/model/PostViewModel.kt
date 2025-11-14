@@ -48,6 +48,7 @@ import it.vercruysse.lemmyapi.dto.CommentSortType
 import it.vercruysse.lemmyapi.dto.ListingType
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import com.jerboa.ui.components.post.CommentAnalysis
 
 class PostViewModel(
     val id: Either<PostId, CommentId>,
@@ -84,6 +85,32 @@ class PostViewModel(
     var mockSummaryText by mutableStateOf("Lorem ipsum dolor sit amet...")
         private set
 
+    // Comment Analysis UI state
+    var isLoadingAnalysis by mutableStateOf(false)
+        private set
+    var isAnalysisVisible by mutableStateOf(false)
+        private set
+    var mockAnalysis by mutableStateOf(
+        CommentAnalysis(
+            mainThemes = listOf(
+                "Discussion about implementation details",
+                "Performance considerations",
+                "User experience feedback",
+            ),
+            agreements = listOf(
+                "Most users agree on the core approach",
+                "The proposed solution addresses the main concerns",
+                "The design is intuitive and user-friendly",
+            ),
+            disagreements = listOf(
+                "Some users prefer a different API structure",
+                "There's debate about the optimal data format",
+                "Mixed opinions on the priority of features",
+            ),
+        ),
+    )
+        private set
+
     init {
         this.getData()
     }
@@ -95,6 +122,16 @@ class PostViewModel(
             delay(2000)
             isLoadingSummary = false
             isSummaryVisible = true
+        }
+    }
+
+    fun onAnalyzeCommentsClicked() {
+        viewModelScope.launch {
+            isAnalysisVisible = false
+            isLoadingAnalysis = true
+            delay(2000)
+            isLoadingAnalysis = false
+            isAnalysisVisible = true
         }
     }
 
