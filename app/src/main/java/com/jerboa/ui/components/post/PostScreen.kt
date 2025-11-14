@@ -519,7 +519,11 @@ fun PostScreen(
                                     }
                                     if (postViewModel.isAnalysisVisible) {
                                         Spacer(modifier = Modifier.height(12.dp))
-                                        CommentAnalysisCard(analysis = postViewModel.mockAnalysis)
+                                        CommentAnalysisCard(analysis = postViewModel.commentAnalysis)
+                                    }
+                                    postViewModel.analysisError?.let { error ->
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        ErrorCard(text = error)
                                     }
                                 }
                             }
