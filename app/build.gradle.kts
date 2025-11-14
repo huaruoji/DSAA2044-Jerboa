@@ -231,4 +231,17 @@ dependencies {
     implementation("io.ktor:ktor-client-android:3.3.0")
     implementation("io.ktor:ktor-client-content-negotiation:3.3.0")
     implementation("io.ktor:ktor-serialization-kotlinx-json:3.3.0")
+
+    // testImplementation("io.ktor:ktor-client-mock:3.3.0")
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("androidx.arch.core:core-testing:2.2.0")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
+    testImplementation("com.google.truth:truth:1.1.5")  // 修正：truth 不是 tnuth
+    testImplementation("org.mockito:mockito-core:5.5.0")
+    testImplementation("org.mockito.kotlin:mockito-kotlin:5.1.0")
+
+    // UI
+    androidTestImplementation("androidx.test.ext:junit:1.1.5")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.5.4")
 }
