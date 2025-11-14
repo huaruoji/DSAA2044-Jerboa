@@ -497,6 +497,29 @@ fun PostScreen(
                                 HorizontalDivider()
                             }
 
+                            // Analyze Comments button and analysis card
+                            item(key = "${postView.post.id}_analyze_comments", contentType = "analyze_comments") {
+                                Column(modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 16.dp, vertical = 8.dp)) {
+                                    Button(
+                                        onClick = { postViewModel.onAnalyzeCommentsClicked() },
+                                        enabled = !postViewModel.isLoadingAnalysis,
+                                        modifier = Modifier.fillMaxWidth(),
+                                    ) {
+                                        Text(text = stringResource(id = R.string.analyze_comments))
+                                    }
+                                    if (postViewModel.isLoadingAnalysis) {
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        CircularProgressIndicator()
+                                    }
+                                    if (postViewModel.isAnalysisVisible) {
+                                        Spacer(modifier = Modifier.height(12.dp))
+                                        CommentAnalysisCard(analysis = postViewModel.mockAnalysis)
+                                    }
+                                }
+                            }
+
                             when (val commentsRes = postViewModel.commentsRes) {
                                 is ApiState.Failure ->
                                     item(key = "error") {

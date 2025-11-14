@@ -511,4 +511,5 @@
     <string name="play">Play</string>
     <string name="pause">Pause</string>
     <string name="generate_summary">Generate Summary</string>
+    <string name="analyze_comments">Analyze Comments</string>
 </resources>
