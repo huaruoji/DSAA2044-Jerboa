@@ -95,25 +95,15 @@ class PostViewModel(
         private set
     var isAnalysisVisible by mutableStateOf(false)
         private set
-    var mockAnalysis by mutableStateOf(
+    var commentAnalysis by mutableStateOf(
         CommentAnalysis(
-            mainThemes = listOf(
-                "Discussion about implementation details",
-                "Performance considerations",
-                "User experience feedback",
-            ),
-            agreements = listOf(
-                "Most users agree on the core approach",
-                "The proposed solution addresses the main concerns",
-                "The design is intuitive and user-friendly",
-            ),
-            disagreements = listOf(
-                "Some users prefer a different API structure",
-                "There's debate about the optimal data format",
-                "Mixed opinions on the priority of features",
-            ),
+            mainThemes = listOf(),
+            agreements = listOf(),
+            disagreements = listOf(),
         ),
     )
+        private set
+    var analysisError by mutableStateOf<String?>(null)
         private set
 
     init {
@@ -158,11 +148,42 @@ class PostViewModel(
 
     fun onAnalyzeCommentsClicked() {
         viewModelScope.launch {
+            val commentsData = (commentsRes as? ApiState.Success)?.data
+            if (commentsData == null) {
+                analysisError = "Unable to load comments for analysis"
+                return@launch
+            }
+            
             isAnalysisVisible = false
             isLoadingAnalysis = true
-            delay(2000)
-            isLoadingAnalysis = false
-            isAnalysisVisible = true
+            analysisError = null
+            
+            try {
+                val comments = commentsData.comments
+                
+                if (comments.isEmpty()) {
+                    analysisError = "No comments available to analyze"
+                    isLoadingAnalysis = false
+                    return@launch
+                }
+                
+                val result = aiRepository.analyzeComments(comments)
+                
+                result.fold(
+                    onSuccess = { analysis ->
+                        commentAnalysis = analysis
+                        isLoadingAnalysis = false
+                        isAnalysisVisible = true
+                    },
+                    onFailure = { error ->
+                        analysisError = error.message ?: "Failed to analyze comments"
+                        isLoadingAnalysis = false
+                    }
+                )
+            } catch (e: Exception) {
+                analysisError = "An unexpected error occurred: ${e.message}"
+                isLoadingAnalysis = false
+            }
         }
     }
 
