@@ -472,21 +472,31 @@ fun PostScreen(
                                     Button(
                                         onClick = { postViewModel.onGenerateSummaryClicked() },
                                         enabled = !postViewModel.isLoadingSummary,
-                                        modifier = Modifier.fillMaxWidth(),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .testTag("generate_summary_button"),
                                     ) {
                                         Text(text = stringResource(id = R.string.generate_summary))
                                     }
                                     if (postViewModel.isLoadingSummary) {
                                         Spacer(modifier = Modifier.height(12.dp))
-                                        CircularProgressIndicator()
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.testTag("summary_loading_indicator"),
+                                        )
                                     }
                                     if (postViewModel.isSummaryVisible) {
                                         Spacer(modifier = Modifier.height(12.dp))
-                                        SummaryCard(text = postViewModel.summaryText)
+                                        SummaryCard(
+                                            text = postViewModel.summaryText,
+                                            modifier = Modifier.testTag("summary_display_card"),
+                                        )
                                     }
                                     postViewModel.summaryError?.let { error ->
                                         Spacer(modifier = Modifier.height(12.dp))
-                                        ErrorCard(text = error)
+                                        ErrorCard(
+                                            text = error,
+                                            modifier = Modifier.testTag("summary_error_card"),
+                                        )
                                     }
                                 }
                             }

@@ -1,79 +1,48 @@
-# Name of the workflow
-name: Android CI Build and Release
+name: Android CI with Tests
 
-# Events that trigger the workflow
 on:
   push:
-    branches: [ "main" ]
-    # Add a trigger condition: only trigger when a tag matching the v*.*.* format is created
-    tags:
-      - 'v*.*.*' # Matches v1.0, v1.2.3, etc.
+    branches: [ "main", "feature/*" ]
   pull_request:
     branches: [ "main" ]
 
-# Get the necessary permissions for the workflow
-permissions:
-  contents: write
-
-# Define jobs
 jobs:
-  # First job: build
-  build:
+  test:
     runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
           distribution: 'temurin'
+          java-version: '17'
 
-      - name: Cache Gradle packages
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
-          restore-keys: |
-            ${{ runner.os }}-gradle-
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Run unit tests
+        run: ./gradlew test
 
-      - name: Build with Gradle
-        run: ./gradlew assembleDebug
-
-      # Note the change here: we give the uploaded artifact a fixed name for easy reference in subsequent jobs
-      - name: Upload APK for Release
-        uses: actions/upload-artifact@v4
-        with:
-          name: Jerboa-Debug-APK # Keep this name, the subsequent release job will use it
-          path: app/build/outputs/apk/debug/app-debug.apk
-
-  # Second job: release
-  release:
-    # Only run this job when a new tag is created
-    if: startsWith(github.ref, 'refs/tags/')
-    # Depends on the build job, ensuring it runs only after a successful build
-    needs: build
+  build:
+    needs: test  # 只有当测试通过后才构建
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'  # 只在main分支构建发布
 
     steps:
-      # Step 1: Download the APK file uploaded in the build job
-      - name: Download APK from build job
-        uses: actions/download-artifact@v4
-        with:
-          name: Jerboa-Debug-APK # Must exactly match the name in upload-artifact
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-      # Step 2: Create Release
-      - name: Create Release and Upload APK
-        uses: softprops/action-gh-release@v1
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
         with:
-          # The files field specifies which files to upload as release assets
-          files: app-debug.apk
-        env:
-          # GitHub Actions automatically provides a GITHUB_TOKEN for authorization
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
+
+      - name: Build with Gradle
+        run: ./gradlew build
