@@ -5,7 +5,10 @@ import androidx.activity.compose.ReportDrawn
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBarsPadding
 import androidx.compose.foundation.lazy.LazyListState
@@ -20,12 +23,19 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.TopAppBarScrollBehavior
+import androidx.compose.material3.Text
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -46,8 +56,11 @@ import com.jerboa.feat.SwipeToActionPreset
 import com.jerboa.feat.VoteType
 import com.jerboa.feat.doIfReadyElseDisplayInfo
 import com.jerboa.feat.newVote
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.jerboa.model.AccountViewModel
 import com.jerboa.model.AppSettingsViewModel
+import com.jerboa.model.ForYouViewModel
 import com.jerboa.model.HomeViewModel
 import com.jerboa.model.ReplyItem
 import com.jerboa.model.SiteViewModel
@@ -76,7 +89,14 @@ import it.vercruysse.lemmyapi.datatypes.PersonView
 import it.vercruysse.lemmyapi.datatypes.PostView
 import it.vercruysse.lemmyapi.datatypes.SavePost
 import it.vercruysse.lemmyapi.datatypes.Tagline
+import it.vercruysse.lemmyapi.dto.ListingType
 import kotlinx.coroutines.launch
+
+private enum class FeedTab(val label: String) {
+    Local("Local"),
+    Global("Global"),
+    ForYou("For You"),
+}
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalComposeUiApi::class)
 @Composable
@@ -103,6 +123,8 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     val postListState = homeViewModel.lazyListState
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
+    val forYouViewModel: ForYouViewModel = viewModel()
+    var selectedFeedTab by rememberSaveable { mutableStateOf(FeedTab.Local) }
     // Used for benchmarks TODO: make a .benchmark build that correctly filters
     //  out the benchmark stuff from the actual app, like testtags
     // val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
@@ -128,6 +150,36 @@ fun HomeScreen(
                 siteViewModel,
                 accountViewModel,
             ) {}
+        }
+    }
+
+    LaunchedEffect(selectedFeedTab) {
+        when (selectedFeedTab) {
+            FeedTab.Local -> {
+                if (homeViewModel.listingType != ListingType.Local) {
+                    homeViewModel.updateListingType(ListingType.Local)
+                }
+                homeViewModel.resetPosts()
+            }
+
+            FeedTab.Global -> {
+                if (homeViewModel.listingType != ListingType.All) {
+                    homeViewModel.updateListingType(ListingType.All)
+                }
+                homeViewModel.resetPosts()
+            }
+
+            FeedTab.ForYou -> {
+                forYouViewModel.loadRecommendations()
+            }
+        }
+    }
+
+    LaunchedEffect(homeViewModel.listingType) {
+        when (homeViewModel.listingType) {
+            ListingType.Local -> selectedFeedTab = FeedTab.Local
+            ListingType.All -> selectedFeedTab = FeedTab.Global
+            else -> {}
         }
     }
 
@@ -160,25 +212,59 @@ fun HomeScreen(
             )
         },
         content = { innerPadding ->
-            Box(modifier = Modifier.padding(innerPadding)) {
-                MainPostListingsContent(
-                    homeViewModel = homeViewModel,
-                    siteViewModel = siteViewModel,
-                    appSettingsViewModel = appSettingsViewModel,
-                    account = account,
-                    appState = appState,
-                    postListState = postListState,
-                    showVotingArrowsInListView = showVotingArrowsInListView,
-                    useCustomTabs = useCustomTabs,
-                    usePrivateTabs = usePrivateTabs,
-                    blurNSFW = blurNSFW,
-                    showPostLinkPreviews = showPostLinkPreviews,
-                    markAsReadOnScroll = markAsReadOnScroll,
-                    snackbarHostState = snackbarHostState,
-                    postActionBarMode = postActionBarMode,
-                    swipeToActionPreset = swipeToActionPreset,
-                    disableVideoAutoplay = disableVideoAutoplay,
+            Column(
+                modifier =
+                    Modifier
+                        .padding(innerPadding)
+                        .fillMaxSize(),
+            ) {
+                FeedTabRow(
+                    selectedFeedTab = selectedFeedTab,
+                    onTabSelected = { selectedFeedTab = it },
                 )
+                Spacer(modifier = Modifier.height(8.dp))
+
+                when (selectedFeedTab) {
+                    FeedTab.ForYou -> {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxSize(),
+                        ) {
+                            ForYouFeedScreen(
+                                viewModel = forYouViewModel,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
+                    }
+
+                    else -> {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillMaxSize(),
+                        ) {
+                            MainPostListingsContent(
+                                homeViewModel = homeViewModel,
+                                siteViewModel = siteViewModel,
+                                appSettingsViewModel = appSettingsViewModel,
+                                account = account,
+                                appState = appState,
+                                postListState = postListState,
+                                showVotingArrowsInListView = showVotingArrowsInListView,
+                                useCustomTabs = useCustomTabs,
+                                usePrivateTabs = usePrivateTabs,
+                                blurNSFW = blurNSFW,
+                                showPostLinkPreviews = showPostLinkPreviews,
+                                markAsReadOnScroll = markAsReadOnScroll,
+                                snackbarHostState = snackbarHostState,
+                                postActionBarMode = postActionBarMode,
+                                swipeToActionPreset = swipeToActionPreset,
+                                disableVideoAutoplay = disableVideoAutoplay,
+                            )
+                        }
+                    }
+                }
             }
         },
         floatingActionButtonPosition = FabPosition.End,
@@ -207,6 +293,24 @@ fun HomeScreen(
             }
         },
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun FeedTabRow(
+    selectedFeedTab: FeedTab,
+    onTabSelected: (FeedTab) -> Unit,
+) {
+    val tabs = FeedTab.entries
+    TabRow(selectedTabIndex = tabs.indexOf(selectedFeedTab)) {
+        tabs.forEach { tab ->
+            Tab(
+                selected = tab == selectedFeedTab,
+                onClick = { onTabSelected(tab) },
+                text = { Text(tab.label) },
+            )
+        }
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
