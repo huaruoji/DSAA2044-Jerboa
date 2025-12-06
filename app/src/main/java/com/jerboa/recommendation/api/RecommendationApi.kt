@@ -1,15 +1,16 @@
 package com.jerboa.recommendation.api
 
-import com.jerboa.recommendation.model.RecommendRequest
 import com.jerboa.recommendation.model.RecommendResponse
 import retrofit2.Response
-import retrofit2.http.Body
-import retrofit2.http.POST
+import retrofit2.http.GET
+import retrofit2.http.Query
 
 interface RecommendationApi {
-    @POST("recommend")
+    @GET("recommend")
     suspend fun getRecommendations(
-        @Body request: RecommendRequest,
+        @Query("q") query: String,
+        @Query("top_k") topK: Int = 10,
+        @Query("min_score") minScore: Double = 0.0,
     ): Response<RecommendResponse>
 }
 

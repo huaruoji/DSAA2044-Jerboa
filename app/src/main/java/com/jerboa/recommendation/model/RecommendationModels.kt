@@ -9,6 +9,8 @@ data class RecommendRequest(
 
 data class RecommendResponse(
     @SerializedName("success") val success: Boolean,
+    @SerializedName("query") val query: String? = null,
+    @SerializedName("count") val count: Int? = null,
     @SerializedName("recommendations") val recommendations: List<RecommendationItem> = emptyList(),
 )
 

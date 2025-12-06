@@ -3,7 +3,6 @@ package com.jerboa.model
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jerboa.recommendation.api.RecommendationClient
-import com.jerboa.recommendation.model.RecommendRequest
 import com.jerboa.recommendation.model.RecommendationItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,10 +33,8 @@ class ForYouViewModel : ViewModel() {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
                     RecommendationClient.api.getRecommendations(
-                        RecommendRequest(
-                            query = query,
-                            topK = topK,
-                        ),
+                        query = query,
+                        topK = topK,
                     )
                 }
             }
@@ -55,18 +52,30 @@ class ForYouViewModel : ViewModel() {
                                 )
                             }
                         } else {
+                            // Try to get error message from response body
+                            val errorBody = try {
+                                response.errorBody()?.string()
+                            } catch (e: Exception) {
+                                null
+                            }
                             _uiState.update {
                                 it.copy(
                                     isLoading = false,
-                                    error = "Unable to load recommendations",
+                                    error = errorBody ?: "Unable to load recommendations. Response: ${body?.let { "success=${it.success}, count=${it.count}" } ?: "null body"}",
                                 )
                             }
                         }
                     } else {
+                        // Get error details from response
+                        val errorBody = try {
+                            response.errorBody()?.string()
+                        } catch (e: Exception) {
+                            null
+                        }
                         _uiState.update {
                             it.copy(
                                 isLoading = false,
-                                error = "Error ${response.code()}: ${response.message()}",
+                                error = "Error ${response.code()}: ${response.message()}\n${errorBody ?: ""}",
                             )
                         }
                     }
@@ -75,7 +84,7 @@ class ForYouViewModel : ViewModel() {
                     _uiState.update {
                         it.copy(
                             isLoading = false,
-                            error = throwable.localizedMessage ?: "Network error",
+                            error = "${throwable.javaClass.simpleName}: ${throwable.message ?: throwable.localizedMessage ?: "Network error"}",
                         )
                     }
                 },
@@ -84,7 +93,7 @@ class ForYouViewModel : ViewModel() {
     }
 
     private companion object {
-        const val DEFAULT_QUERY = "programming rust android"
+        const val DEFAULT_QUERY = "macron"
         const val DEFAULT_TOP_K = 10
     }
 }

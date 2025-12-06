@@ -244,24 +244,24 @@ fun HomeScreen(
                                 Modifier
                                     .fillMaxSize(),
                         ) {
-                            MainPostListingsContent(
-                                homeViewModel = homeViewModel,
-                                siteViewModel = siteViewModel,
-                                appSettingsViewModel = appSettingsViewModel,
-                                account = account,
-                                appState = appState,
-                                postListState = postListState,
-                                showVotingArrowsInListView = showVotingArrowsInListView,
-                                useCustomTabs = useCustomTabs,
-                                usePrivateTabs = usePrivateTabs,
-                                blurNSFW = blurNSFW,
-                                showPostLinkPreviews = showPostLinkPreviews,
-                                markAsReadOnScroll = markAsReadOnScroll,
-                                snackbarHostState = snackbarHostState,
-                                postActionBarMode = postActionBarMode,
-                                swipeToActionPreset = swipeToActionPreset,
-                                disableVideoAutoplay = disableVideoAutoplay,
-                            )
+                MainPostListingsContent(
+                    homeViewModel = homeViewModel,
+                    siteViewModel = siteViewModel,
+                    appSettingsViewModel = appSettingsViewModel,
+                    account = account,
+                    appState = appState,
+                    postListState = postListState,
+                    showVotingArrowsInListView = showVotingArrowsInListView,
+                    useCustomTabs = useCustomTabs,
+                    usePrivateTabs = usePrivateTabs,
+                    blurNSFW = blurNSFW,
+                    showPostLinkPreviews = showPostLinkPreviews,
+                    markAsReadOnScroll = markAsReadOnScroll,
+                    snackbarHostState = snackbarHostState,
+                    postActionBarMode = postActionBarMode,
+                    swipeToActionPreset = swipeToActionPreset,
+                    disableVideoAutoplay = disableVideoAutoplay,
+                )
                         }
                     }
                 }
