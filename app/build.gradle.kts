@@ -223,6 +223,10 @@ dependencies {
     implementation("it.vercruysse.lemmyapi:lemmy-api:0.4.1")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.9.0")
 
+    // Retrofit for recommendation API
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+
     // For custom logging plugin
     implementation("io.ktor:ktor-client-logging:3.3.0")
 
