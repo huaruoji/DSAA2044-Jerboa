@@ -4,7 +4,7 @@ name: Android CI - Build, Test, and Release
 # Events that trigger the workflow
 on:
   push:
-    branches: [ "main", "feature/*" ]
+    branches: [ "main", "feature/*", "feat/*" ]
     # Add tag trigger for Release
     tags:
       - 'v*.*.*' # Matches v1.0, v1.2.3, etc.
