@@ -33,21 +33,33 @@ class TFIDFRecommender(BaseRecommender):
         """Load TF-IDF model artifacts from disk."""
         print("Loading TF-IDF recommendation model...")
         
-        # Load vectorizer
+        # Load vectorizer (required for candidate scoring)
         with open(f'{self.models_dir}/tfidf_vectorizer.pkl', 'rb') as f:
             self.vectorizer = pickle.load(f)
         
-        # Load TF-IDF matrix
-        with open(f'{self.models_dir}/tfidf_matrix.pkl', 'rb') as f:
-            self.tfidf_matrix = pickle.load(f)
+        # Optional: Load TF-IDF matrix (only needed for legacy recommend_from_history)
+        try:
+            with open(f'{self.models_dir}/tfidf_matrix.pkl', 'rb') as f:
+                self.tfidf_matrix = pickle.load(f)
+        except FileNotFoundError:
+            print("  Warning: tfidf_matrix.pkl not found (not needed for candidate scoring)")
+            self.tfidf_matrix = None
         
-        # Load processed dataframe
-        with open(f'{self.models_dir}/processed_posts.pkl', 'rb') as f:
-            self.df = pickle.load(f)
+        # Optional: Load processed dataframe (only needed for legacy recommend_from_history)
+        try:
+            with open(f'{self.models_dir}/processed_posts.pkl', 'rb') as f:
+                self.df = pickle.load(f)
+        except FileNotFoundError:
+            print("  Warning: processed_posts.pkl not found (not needed for candidate scoring)")
+            self.df = None
         
         # Load metadata
-        with open(f'{self.models_dir}/model_metadata.pkl', 'rb') as f:
-            self.metadata = pickle.load(f)
+        try:
+            with open(f'{self.models_dir}/model_metadata.pkl', 'rb') as f:
+                self.metadata = pickle.load(f)
+        except FileNotFoundError:
+            print("  Warning: model_metadata.pkl not found")
+            self.metadata = None
         
         self.is_loaded = True
         print(f"✓ Model loaded: {self.metadata['num_posts']:,} posts, "
