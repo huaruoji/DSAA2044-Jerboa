@@ -43,6 +43,7 @@ class FirebaseAnalyticsHelper private constructor(context: Context) {
         contentLength: Int = 0,
         source: String = "unknown"
     ) {
+        android.util.Log.d("Firebase", "📊 Logging post_view: ID=$postId, source=$source, title=${postTitle.take(30)}...")
         firebaseAnalytics.logEvent("post_view") {
             param("post_id", postId)
             param("post_title", postTitle.take(100)) // Limit to 100 chars
@@ -76,6 +77,7 @@ class FirebaseAnalyticsHelper private constructor(context: Context) {
      * Log when user clicks on For You tab
      */
     fun logForYouTabView() {
+        android.util.Log.d("Firebase", "📊 Logging for_you_tab_view")
         firebaseAnalytics.logEvent("for_you_tab_view") {
             param("timestamp", System.currentTimeMillis())
         }
@@ -94,6 +96,7 @@ class FirebaseAnalyticsHelper private constructor(context: Context) {
         responseTime: Long,
         success: Boolean
     ) {
+        android.util.Log.d("Firebase", "📊 Logging recommendation_request: history=$historySize, candidates=$candidateCount, time=${responseTime}ms, success=$success")
         firebaseAnalytics.logEvent("recommendation_request") {
             param("history_size", historySize.toLong())
             param("candidate_count", candidateCount.toLong())

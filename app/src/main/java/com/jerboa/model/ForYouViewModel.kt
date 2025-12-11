@@ -188,11 +188,13 @@ class ForYouViewModel(application: Application) : AndroidViewModel(application) 
                                                 scoreMap[postView.post.id.toString()] ?: 0.0
                                             }
                                             
-                            // Log top recommendations
-                            rankedPosts.take(5).forEachIndexed { i, post ->
-                                val score = scoreMap[post.post.id.toString()] ?: 0.0
-                                android.util.Log.d("ForYou", "  [$i] Score: ${"%.3f".format(score)} - ${post.post.name.take(50)}...")
-                            }                                            _uiState.update {
+                                            // Log top recommendations
+                                            rankedPosts.take(5).forEachIndexed { i, post ->
+                                                val score = scoreMap[post.post.id.toString()] ?: 0.0
+                                                android.util.Log.d("ForYou", "  [$i] Score: ${"%.3f".format(score)} - ${post.post.name.take(50)}...")
+                                            }
+                                            
+                                            _uiState.update {
                                                 it.copy(
                                                     isLoading = false,
                                                     posts = rankedPosts,
