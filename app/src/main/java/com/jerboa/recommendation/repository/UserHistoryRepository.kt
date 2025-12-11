@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import com.jerboa.recommendation.analytics.FirebaseAnalyticsHelper
 
 /**
  * User Reading History Manager
@@ -15,11 +16,12 @@ import com.google.gson.reflect.TypeToken
  * - FIFO queue with configurable max size
  * - Persists across app restarts using SharedPreferences
  * - Thread-safe operations
+ * - Firebase Analytics integration for behavior tracking
  * 
  * @author DSAA2044 Team
  * @date December 2025
  */
-class UserHistoryRepository private constructor(context: Context) {
+class UserHistoryRepository private constructor(private val context: Context) {
 
     private val prefs: SharedPreferences = context.getSharedPreferences(
         PREFS_NAME,
@@ -27,6 +29,7 @@ class UserHistoryRepository private constructor(context: Context) {
     )
     
     private val gson = Gson()
+    private val analyticsHelper by lazy { FirebaseAnalyticsHelper.getInstance(context) }
     
     /**
      * Add a post to reading history.

@@ -6,6 +6,7 @@ import androidx.lifecycle.viewModelScope
 import com.jerboa.api.API
 import com.jerboa.api.ApiState
 import com.jerboa.api.toApiState
+import com.jerboa.recommendation.analytics.FirebaseAnalyticsHelper
 import com.jerboa.recommendation.api.RecommendationClient
 import com.jerboa.recommendation.model.CandidatePost
 import com.jerboa.recommendation.model.ScoreRequest
@@ -46,6 +47,9 @@ class ForYouViewModel(application: Application) : AndroidViewModel(application) 
     val uiState: StateFlow<ForYouUiState> = _uiState.asStateFlow()
     
     private val historyRepository = UserHistoryRepository.getInstance(application)
+    private val analyticsHelper = FirebaseAnalyticsHelper.getInstance(application)
+    
+    private var recommendationStartTime = 0L
 
     /**
      * Load personalized recommendations.
@@ -63,9 +67,13 @@ class ForYouViewModel(application: Application) : AndroidViewModel(application) 
         sortType: SortType = SortType.Active
     ) {
         viewModelScope.launch {
+            recommendationStartTime = System.currentTimeMillis()
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             android.util.Log.d("ForYou", "=== Loading Personalized Feed ===")
+            
+            // Log For You tab view to Firebase
+            analyticsHelper.logForYouTabView()
             
             // Step 1: Fetch candidate posts from Lemmy
             val lemmyResult = withContext(Dispatchers.IO) {
@@ -156,10 +164,20 @@ class ForYouViewModel(application: Application) : AndroidViewModel(application) 
                             
                             scoreResult.fold(
                                 onSuccess = { response ->
+                                    val responseTime = System.currentTimeMillis() - recommendationStartTime
+                                    
                                     if (response.isSuccessful) {
                                         val body = response.body()
                                         if (body != null && body.success) {
                                             android.util.Log.d("ForYou", "Received ${body.scoredCandidates.size} scored results")
+                                            
+                                            // Log recommendation request to Firebase
+                                            analyticsHelper.logRecommendationRequest(
+                                                historySize = historyContents.size,
+                                                candidateCount = candidates.size,
+                                                responseTime = responseTime,
+                                                success = true
+                                            )
                                             
                                             // Step 5: Reorder unseen posts by similarity score
                                             val scoreMap = body.scoredCandidates.associate { 
@@ -188,6 +206,15 @@ class ForYouViewModel(application: Application) : AndroidViewModel(application) 
                                         } else {
                                             val errorMsg = body?.error ?: "Unknown error from backend"
                                             android.util.Log.e("ForYou", "Backend error: $errorMsg")
+                                            
+                                            // Log failed request
+                                            analyticsHelper.logRecommendationRequest(
+                                                historySize = historyContents.size,
+                                                candidateCount = candidates.size,
+                                                responseTime = responseTime,
+                                                success = false
+                                            )
+                                            
                                             _uiState.update {
                                                 it.copy(
                                                     isLoading = false,
@@ -257,11 +284,21 @@ class ForYouViewModel(application: Application) : AndroidViewModel(application) 
      * Record that user viewed a post.
      * Automatically adds to reading history for future recommendations.
      */
-    fun onPostViewed(postId: Long, postTitle: String, postText: String = "") {
+    fun onPostViewed(postId: Long, postTitle: String, postText: String = "", source: String = "for_you") {
         // Record post ID to prevent future recommendations
         historyRepository.addViewedPostId(postId)
         // Add content to history for similarity scoring
         historyRepository.addToHistory(postTitle, postText)
+        
+        // Log to Firebase Analytics
+        analyticsHelper.logPostView(
+            postId = postId,
+            postTitle = postTitle,
+            communityName = "", // Can be extracted from PostView if needed
+            contentLength = postText.length,
+            source = source
+        )
+        
         android.util.Log.d("ForYou", "✓ Recorded view (ID: $postId): ${postTitle.take(50)}...")
         android.util.Log.d("ForYou", "  Total history: ${historyRepository.getCount()}, Viewed IDs: ${historyRepository.getViewedPostIds().size}")
     }
