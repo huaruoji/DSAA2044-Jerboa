@@ -14,3 +14,7 @@ local.properties
 .settings
 .classpath
 .kotlin
+recommendation-system/data/*
+recommendation-system/models/*
+*/__pycache__/*
+*/*.pyc

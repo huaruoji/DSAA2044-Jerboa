@@ -140,14 +140,31 @@ class RecommendationModel:
         results = []
         for idx in top_indices:
             post = self.df.iloc[idx]
+            
+            # Safely convert created_utc to int
+            try:
+                created_utc = int(float(post['created_utc']))
+            except (ValueError, TypeError):
+                # If conversion fails, try parsing as datetime string
+                try:
+                    created_utc = int(pd.to_datetime(post['created_utc']).timestamp())
+                except:
+                    created_utc = 0
+            
+            # Safely convert score to int
+            try:
+                score = int(float(post['score']))
+            except (ValueError, TypeError):
+                score = 0
+            
             results.append({
-                'title': post['title'],
-                'text': post['combined_text'],
-                'url': post['url'],
-                'subreddit': post['subreddit.name'],
-                'score': int(post['score']),
+                'title': str(post['title']),
+                'text': str(post['combined_text']),
+                'url': str(post['url']),
+                'subreddit': str(post['subreddit.name']),
+                'score': score,
                 'similarity_score': float(similarity_scores[idx]),
-                'created_utc': int(post['created_utc'])
+                'created_utc': created_utc
             })
         
         return results
