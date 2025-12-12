@@ -54,13 +54,3 @@ class ForYouViewModelTest {
         assertEquals("AndroidViewModel", superclass)
     }
 }
-    /**
-     * Test 3: Verify ForYouViewModel extends ViewModel
-     * Acceptance Criteria: Proper lifecycle management
-     */
-    @Test
-    fun `ForYouViewModel should extend ViewModel`() {
-        val superclass = ForYouViewModel::class.java.superclass?.simpleName
-        assertEquals("AndroidViewModel", superclass)
-    }
-}
