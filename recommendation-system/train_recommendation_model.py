@@ -26,8 +26,14 @@ print("=" * 80)
 print("STEP 1: Loading Data")
 print("=" * 80)
 
-# Load the posts dataset
-data_path = os.path.join('data', 'the-reddit-dataset-dataset-posts.csv')
+# Load the posts dataset - Auto-detect format
+# Try merged file first, then fall back to individual files
+data_path = os.path.join('data', 'merged_reddit_data.csv')
+
+if not os.path.exists(data_path):
+    # Try the old format
+    data_path = os.path.join('data', 'the-reddit-dataset-dataset-posts.csv')
+
 print(f"Loading data from: {data_path}")
 
 df = pd.read_csv(data_path)
@@ -37,6 +43,51 @@ print(f"✓ Columns: {list(df.columns)}")
 # Display basic info about the dataset
 print(f"\nDataset shape: {df.shape}")
 print(f"Memory usage: {df.memory_usage(deep=True).sum() / 1024**2:.2f} MB")
+
+# Detect and normalize column names based on dataset format
+print("\nNormalizing column names...")
+column_mapping = {}
+
+# Map different possible column names to standard names
+if 'Text' in df.columns and 'Title' not in df.columns:
+    # merged_reddit_data.csv format
+    column_mapping = {
+        'Text': 'combined_text_raw',
+        'Subreddit': 'subreddit.name',
+        'Upvotes': 'score',
+        'creation_date': 'created_utc',
+        'ID': 'id'
+    }
+    df['title'] = ''  # No separate title in this format
+    df['selftext'] = ''  # Text is already combined
+elif 'Title' in df.columns and 'Body' in df.columns:
+    # Individual subreddit files format
+    column_mapping = {
+        'Title': 'title',
+        'Body': 'selftext',
+        'Subreddit': 'subreddit.name',
+        'Upvotes': 'score',
+        'URL': 'url',
+        'creation_date': 'created_utc',
+        'ID': 'id'
+    }
+elif 'title' in df.columns and 'selftext' in df.columns:
+    # Old format - already has correct column names
+    column_mapping = {
+        'subreddit.name': 'subreddit.name',
+        'score': 'score',
+        'url': 'url',
+        'created_utc': 'created_utc'
+    }
+
+# Apply column mapping
+for old_col, new_col in column_mapping.items():
+    if old_col in df.columns:
+        if new_col not in df.columns:
+            df[new_col] = df[old_col]
+
+print(f"✓ Column mapping applied")
+print(f"✓ Normalized columns: {list(df.columns)}")
 
 # ============================================================================
 # 2. HANDLE MISSING VALUES
@@ -48,11 +99,23 @@ print("=" * 80)
 
 # Check for missing values
 print("\nMissing values before cleaning:")
+
+# Ensure required columns exist
+if 'title' not in df.columns:
+    df['title'] = ''
+if 'selftext' not in df.columns:
+    df['selftext'] = ''
+
 print(df[['title', 'selftext']].isnull().sum())
 
-# Fill missing 'selftext' (body) with empty string
+# Fill missing values with empty string
 df['selftext'] = df['selftext'].fillna('')
 df['title'] = df['title'].fillna('')
+
+# If we have pre-combined text, use it
+if 'combined_text_raw' in df.columns:
+    df['title'] = df['combined_text_raw'].fillna('')
+    df['selftext'] = ''
 
 print("\nMissing values after cleaning:")
 print(df[['title', 'selftext']].isnull().sum())
@@ -92,7 +155,10 @@ def clean_text(text):
     return text
 
 # Create combined_text column by concatenating title and body
+# NOTE: We deliberately DO NOT include subreddit name in the text
+# This ensures recommendations are based on content similarity, not subreddit matching
 print("\nCreating 'combined_text' column...")
+print("ℹ️  Strategy: Content-based only (not including subreddit name)")
 df['combined_text'] = df['title'] + ' ' + df['selftext']
 
 # Apply text cleaning
@@ -124,20 +190,23 @@ print("\n" + "=" * 80)
 print("STEP 4: TF-IDF Vectorization")
 print("=" * 80)
 
-# Initialize TF-IDF Vectorizer with 5000 features
+# Initialize TF-IDF Vectorizer with improved parameters for content-based recommendations
 print("\nInitializing TfidfVectorizer with the following parameters:")
-print("  - max_features: 5000")
+print("  - max_features: 10000 (increased for better content representation)")
 print("  - stop_words: 'english'")
-print("  - ngram_range: (1, 2) [unigrams and bigrams]")
+print("  - ngram_range: (1, 3) [unigrams, bigrams, and trigrams]")
 print("  - min_df: 2 [ignore terms appearing in less than 2 documents]")
-print("  - max_df: 0.8 [ignore terms appearing in more than 80% of documents]")
+print("  - max_df: 0.7 [ignore terms appearing in more than 70% of documents]")
+print("  - sublinear_tf: True [use logarithmic term frequency scaling]")
+print("\nℹ️  This configuration emphasizes content similarity over subreddit matching")
 
 vectorizer = TfidfVectorizer(
-    max_features=5000,
+    max_features=10000,  # Increased from 5000 for richer vocabulary
     stop_words='english',
-    ngram_range=(1, 2),  # Include unigrams and bigrams
+    ngram_range=(1, 3),  # Include unigrams, bigrams, and trigrams
     min_df=2,  # Minimum document frequency
-    max_df=0.8  # Maximum document frequency (ignore too common terms)
+    max_df=0.7,  # Stricter maximum to filter out very common terms
+    sublinear_tf=True  # Use log scaling for term frequency
 )
 
 # Fit and transform the combined_text
@@ -290,19 +359,56 @@ with open(tfidf_matrix_path, 'wb') as f:
 print(f"✓ Saved TF-IDF matrix to: {tfidf_matrix_path}")
 
 # Save the processed dataframe (with only necessary columns to save space)
-df_to_save = df[['title', 'combined_text', 'score', 'url', 'subreddit.name', 'created_utc']].copy()
+# Select only columns that exist
+columns_to_save = []
+for col in ['title', 'combined_text', 'score', 'url', 'subreddit.name', 'created_utc']:
+    if col in df.columns:
+        columns_to_save.append(col)
+
+# Ensure we have at least the essential columns
+if 'score' not in df.columns:
+    df['score'] = 0
+if 'url' not in df.columns:
+    df['url'] = ''
+if 'created_utc' not in df.columns:
+    df['created_utc'] = pd.Timestamp.now().timestamp()
+if 'subreddit.name' not in df.columns:
+    df['subreddit.name'] = 'unknown'
+
+# Convert created_utc to unix timestamp if it's a datetime string
+if df['created_utc'].dtype == 'object':
+    print("\nConverting created_utc from datetime string to unix timestamp...")
+    try:
+        df['created_utc'] = pd.to_datetime(df['created_utc']).astype(int) / 10**9
+        print("✓ Converted to unix timestamp")
+    except Exception as e:
+        print(f"⚠ Warning: Could not convert created_utc: {e}")
+        df['created_utc'] = pd.Timestamp.now().timestamp()
+
+# Ensure score is numeric
+df['score'] = pd.to_numeric(df['score'], errors='coerce').fillna(0)
+
+columns_to_save = ['title', 'combined_text', 'score', 'url', 'subreddit.name', 'created_utc']
+df_to_save = df[columns_to_save].copy()
 df_path = os.path.join(models_dir, 'processed_posts.pkl')
 with open(df_path, 'wb') as f:
     pickle.dump(df_to_save, f)
 print(f"✓ Saved processed dataframe to: {df_path}")
 
 # Save metadata about the model
+subreddit_counts = df['subreddit.name'].value_counts().to_dict() if 'subreddit.name' in df.columns else {}
+
 metadata = {
     'num_posts': len(df),
     'num_features': tfidf_matrix.shape[1],
     'vectorizer_params': vectorizer.get_params(),
     'training_date': pd.Timestamp.now().strftime('%Y-%m-%d %H:%M:%S'),
-    'max_features': 5000
+    'max_features': 10000,
+    'subreddit_distribution': subreddit_counts,
+    'num_subreddits': len(subreddit_counts),
+    'recommendation_strategy': 'content-based (subreddit-independent)',
+    'description': 'Model trained to recommend based on content similarity, not subreddit matching',
+    'data_source': os.path.basename(data_path)
 }
 
 metadata_path = os.path.join(models_dir, 'model_metadata.pkl')
