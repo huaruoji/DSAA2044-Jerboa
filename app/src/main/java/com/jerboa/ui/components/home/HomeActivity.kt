@@ -58,6 +58,8 @@ import com.jerboa.feat.doIfReadyElseDisplayInfo
 import com.jerboa.feat.newVote
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.ViewModel
 import com.jerboa.model.AccountViewModel
 import com.jerboa.model.AppSettingsViewModel
 import com.jerboa.model.ForYouViewModel
@@ -123,13 +125,20 @@ fun HomeScreen(
     val scope = rememberCoroutineScope()
     val postListState = homeViewModel.lazyListState
     val scrollBehavior = TopAppBarDefaults.enterAlwaysScrollBehavior(rememberTopAppBarState())
-    val forYouViewModel: ForYouViewModel = viewModel()
+    val ctx = LocalContext.current
+    val forYouViewModel: ForYouViewModel = androidx.lifecycle.viewmodel.compose.viewModel(
+        factory = object : androidx.lifecycle.ViewModelProvider.Factory {
+            override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
+                @Suppress("UNCHECKED_CAST")
+                return ForYouViewModel(ctx.applicationContext as android.app.Application) as T
+            }
+        }
+    )
     var selectedFeedTab by rememberSaveable { mutableStateOf(FeedTab.Local) }
     // Used for benchmarks TODO: make a .benchmark build that correctly filters
     //  out the benchmark stuff from the actual app, like testtags
     // val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior(rememberTopAppBarState())
 
-    val ctx = LocalContext.current
     val account = getCurrentAccount(accountViewModel)
     // Forget snackbars of previous accounts
     val snackbarHostState = remember(account) { SnackbarHostState() }
@@ -176,10 +185,14 @@ fun HomeScreen(
     }
 
     LaunchedEffect(homeViewModel.listingType) {
-        when (homeViewModel.listingType) {
-            ListingType.Local -> selectedFeedTab = FeedTab.Local
-            ListingType.All -> selectedFeedTab = FeedTab.Global
-            else -> {}
+        // Only sync tab selection if user is not on For You tab
+        // This prevents automatic switching away from For You when returning from post detail
+        if (selectedFeedTab != FeedTab.ForYou) {
+            when (homeViewModel.listingType) {
+                ListingType.Local -> selectedFeedTab = FeedTab.Local
+                ListingType.All -> selectedFeedTab = FeedTab.Global
+                else -> {}
+            }
         }
     }
 
@@ -226,16 +239,174 @@ fun HomeScreen(
 
                 when (selectedFeedTab) {
                     FeedTab.ForYou -> {
-                        Box(
-                            modifier =
-                                Modifier
-                                    .fillMaxSize(),
-                        ) {
-                            ForYouFeedScreen(
-                                viewModel = forYouViewModel,
-                                modifier = Modifier.fillMaxSize(),
-                            )
-                        }
+                        ForYouFeedScreen(
+                            viewModel = forYouViewModel,
+                            modifier = Modifier.fillMaxSize(),
+                            account = account,
+                            postViewMode = getPostViewMode(appSettingsViewModel),
+                            showVotingArrowsInListView = showVotingArrowsInListView,
+                            enableDownVotes = siteViewModel.enableDownvotes(),
+                            showAvatar = siteViewModel.showAvatar(),
+                            useCustomTabs = useCustomTabs,
+                            usePrivateTabs = usePrivateTabs,
+                            blurNSFW = blurNSFW,
+                            showPostLinkPreviews = showPostLinkPreviews,
+                            postActionBarMode = postActionBarMode,
+                            swipeToActionPreset = swipeToActionPreset,
+                            onUpvoteClick = { postView ->
+                                account.doIfReadyElseDisplayInfo(
+                                    appState,
+                                    ctx,
+                                    snackbarHostState,
+                                    scope,
+                                    siteViewModel,
+                                    accountViewModel,
+                                ) {
+                                    homeViewModel.likePost(
+                                        CreatePostLike(
+                                            post_id = postView.post.id,
+                                            score = newVote(postView.my_vote, VoteType.Upvote),
+                                        ),
+                                    )
+                                }
+                            },
+                            onDownvoteClick = { postView ->
+                                account.doIfReadyElseDisplayInfo(
+                                    appState,
+                                    ctx,
+                                    snackbarHostState,
+                                    scope,
+                                    siteViewModel,
+                                    accountViewModel,
+                                ) {
+                                    homeViewModel.likePost(
+                                        CreatePostLike(
+                                            post_id = postView.post.id,
+                                            score = newVote(postView.my_vote, VoteType.Downvote),
+                                        ),
+                                    )
+                                }
+                            },
+                            onPostClick = { postView ->
+                                // Record view for personalization
+                                forYouViewModel.onPostViewed(
+                                    postId = postView.post.id,
+                                    postTitle = postView.post.name,
+                                    postText = postView.post.body ?: ""
+                                )
+                                // Navigate to post detail
+                                appState.toPost(id = postView.post.id)
+                            },
+                            onSaveClick = { postView ->
+                                account.doIfReadyElseDisplayInfo(
+                                    appState,
+                                    ctx,
+                                    snackbarHostState,
+                                    scope,
+                                    siteViewModel,
+                                    accountViewModel,
+                                ) {
+                                    homeViewModel.savePost(
+                                        SavePost(
+                                            post_id = postView.post.id,
+                                            save = !postView.saved,
+                                        ),
+                                    )
+                                }
+                            },
+                            onReplyClick = { postView ->
+                                appState.toPost(id = postView.post.id)
+                            },
+                            onCommunityClick = { community ->
+                                appState.toCommunity(id = community.id)
+                            },
+                            onPersonClick = { personId ->
+                                appState.toProfile(id = personId)
+                            },
+                            onEditPostClick = { postView ->
+                                appState.toPostEdit(postView = postView)
+                            },
+                            onDeletePostClick = { postView ->
+                                account.doIfReadyElseDisplayInfo(
+                                    appState,
+                                    ctx,
+                                    snackbarHostState,
+                                    scope,
+                                    siteViewModel,
+                                    accountViewModel,
+                                ) {
+                                    homeViewModel.deletePost(
+                                        DeletePost(
+                                            post_id = postView.post.id,
+                                            deleted = !postView.post.deleted,
+                                        ),
+                                    )
+                                }
+                            },
+                            onHidePostClick = { postView ->
+                                account.doIfReadyElseDisplayInfo(
+                                    appState,
+                                    ctx,
+                                    snackbarHostState,
+                                    scope,
+                                    siteViewModel,
+                                    accountViewModel,
+                                ) {
+                                    homeViewModel.hidePost(
+                                        HidePost(
+                                            post_ids = listOf(postView.post.id),
+                                            hide = !postView.hidden,
+                                        ),
+                                        ctx,
+                                    )
+                                }
+                            },
+                            onReportClick = { postView ->
+                                appState.toPostReport(id = postView.post.id)
+                            },
+                            onRemoveClick = { postView ->
+                                appState.toPostRemove(post = postView.post)
+                            },
+                            onBanPersonClick = { person ->
+                                appState.toBanPerson(person = person)
+                            },
+                            onBanFromCommunityClick = { banData ->
+                                appState.toBanFromCommunity(banData = banData)
+                            },
+                            onLockPostClick = { postView ->
+                                homeViewModel.lockPost(
+                                    LockPost(
+                                        post_id = postView.post.id,
+                                        locked = !postView.post.locked,
+                                    ),
+                                )
+                            },
+                            onFeaturePostClick = { data ->
+                                homeViewModel.featurePost(
+                                    FeaturePost(
+                                        post_id = data.post.id,
+                                        featured = data.featured,
+                                        feature_type = data.type,
+                                    ),
+                                )
+                            },
+                            onViewPostVotesClick = { postId ->
+                                appState.toPostLikes(postId = postId)
+                            },
+                            onMarkAsRead = { postView ->
+                                if (!account.isAnon() && !postView.read) {
+                                    homeViewModel.markPostAsRead(
+                                        MarkPostAsRead(
+                                            post_ids = listOf(postView.post.id),
+                                            read = true,
+                                        ),
+                                        postView,
+                                        appState,
+                                    )
+                                }
+                            },
+                            appState = appState,
+                        )
                     }
 
                     else -> {
@@ -261,6 +432,7 @@ fun HomeScreen(
                     postActionBarMode = postActionBarMode,
                     swipeToActionPreset = swipeToActionPreset,
                     disableVideoAutoplay = disableVideoAutoplay,
+                    forYouViewModel = forYouViewModel,
                 )
                         }
                     }
@@ -332,6 +504,7 @@ fun MainPostListingsContent(
     postActionBarMode: PostActionBarMode,
     swipeToActionPreset: SwipeToActionPreset,
     disableVideoAutoplay: Boolean,
+    forYouViewModel: ForYouViewModel,
 ) {
     val ctx = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -404,6 +577,12 @@ fun MainPostListingsContent(
                 }
             },
             onPostClick = { postView ->
+                // Record to history for For You recommendations
+                forYouViewModel.onPostViewed(
+                    postId = postView.post.id,
+                    postTitle = postView.post.name,
+                    postText = postView.post.body ?: ""
+                )
                 appState.toPost(id = postView.post.id)
             },
             onSaveClick = { postView ->

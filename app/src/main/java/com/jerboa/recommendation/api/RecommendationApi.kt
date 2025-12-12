@@ -1,16 +1,32 @@
 package com.jerboa.recommendation.api
 
+import com.jerboa.recommendation.model.RecommendRequest
 import com.jerboa.recommendation.model.RecommendResponse
+import com.jerboa.recommendation.model.ScoreRequest
+import com.jerboa.recommendation.model.ScoreResponse
 import retrofit2.Response
-import retrofit2.http.GET
-import retrofit2.http.Query
+import retrofit2.http.Body
+import retrofit2.http.POST
 
+/**
+ * Recommendation API interface.
+ */
 interface RecommendationApi {
-    @GET("recommend")
+    /**
+     * Score candidate posts based on user history.
+     * Used for ranking Lemmy posts from Global/Local feeds.
+     */
+    @POST("score")
+    suspend fun scoreCandidates(
+        @Body request: ScoreRequest,
+    ): Response<ScoreResponse>
+    
+    /**
+     * [LEGACY] Get recommendations from training dataset.
+     */
+    @POST("recommend")
     suspend fun getRecommendations(
-        @Query("q") query: String,
-        @Query("top_k") topK: Int = 10,
-        @Query("min_score") minScore: Double = 0.0,
+        @Body request: RecommendRequest,
     ): Response<RecommendResponse>
 }
 

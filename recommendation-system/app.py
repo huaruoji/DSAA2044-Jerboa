@@ -13,18 +13,20 @@ Date: December 2025
 """
 
 from flask import Flask, request, jsonify
-from recommendation_inference import RecommendationModel
+from base_recommender import RecommenderFactory
 import os
 
 # Initialize Flask app
 app = Flask(__name__)
 
-# Load the recommendation model
-model = RecommendationModel(models_dir='models')
+# Create recommender using factory pattern
+# Easy to switch: change 'tfidf' to 'bert' when ready
+ALGORITHM = os.getenv('RECOMMENDER_ALGORITHM', 'tfidf')
+model = RecommenderFactory.create_recommender(algorithm=ALGORITHM, models_dir='models')
 
 # Load model at startup
-print("Loading recommendation model...")
-model.load_models()
+print(f"Loading {ALGORITHM.upper()} recommendation model...")
+model.load_model()
 print("✓ Model loaded successfully!")
 
 
@@ -58,56 +60,170 @@ def get_model_info():
         }), 500
 
 
-@app.route('/api/recommend', methods=['POST'])
-def recommend():
+@app.route('/api/score', methods=['POST'])
+def score_candidates():
     """
-    Get recommendations based on a query.
+    Score candidate posts based on user's reading history.
+    Used for Lemmy posts from Global/Local feeds.
     
     Request Body:
     {
-        "query": "machine learning datasets",
-        "top_k": 5,              // optional, default: 5
-        "min_score": 0.0         // optional, default: 0.0
+        "history_contents": ["user history 1", "user history 2", ...],
+        "candidates": [
+            {"id": "123", "title": "...", "body": "..."},
+            {"id": "456", "title": "...", "body": "..."}
+        ],
+        "top_k": 10  // optional, default: return all scored
     }
     
     Response:
     {
         "success": true,
-        "query": "machine learning datasets",
-        "count": 5,
-        "recommendations": [
-            {
-                "title": "...",
-                "text": "...",
-                "url": "...",
-                "subreddit": "...",
-                "score": 123,
-                "similarity_score": 0.95,
-                "created_utc": 1646160815
-            },
-            ...
+        "algorithm": "tfidf",
+        "scored_candidates": [
+            {"id": "456", "similarity_score": 0.85},
+            {"id": "123", "similarity_score": 0.62}
         ]
     }
     """
     try:
-        # Parse request data
         data = request.get_json()
         
-        if not data or 'query' not in data:
+        if not data:
             return jsonify({
                 'success': False,
-                'error': 'Missing required field: query'
+                'error': 'No JSON data provided'
             }), 400
         
-        query = data['query']
-        top_k = data.get('top_k', 5)
-        min_score = data.get('min_score', 0.0)
+        history_contents = data.get('history_contents', [])
+        candidates = data.get('candidates', [])
+        top_k = data.get('top_k', None)
         
-        # Validate parameters
-        if not isinstance(query, str) or not query.strip():
+        if not candidates:
             return jsonify({
                 'success': False,
-                'error': 'Query must be a non-empty string'
+                'error': 'No candidates provided'
+            }), 400
+        
+        # If no history, return candidates with equal scores
+        if not history_contents:
+            scored = [
+                {'id': c.get('id', ''), 'similarity_score': 0.0}
+                for c in candidates
+            ]
+            return jsonify({
+                'success': True,
+                'algorithm': ALGORITHM,
+                'scored_candidates': scored,
+                'note': 'No history available, returning unscored candidates'
+            })
+        
+        # Score candidates using the model
+        scored_candidates = model.score_candidates(
+            history_contents=history_contents,
+            candidates=candidates
+        )
+        
+        # Sort by similarity score descending
+        scored_candidates.sort(key=lambda x: x['similarity_score'], reverse=True)
+        
+        # Apply top_k if specified
+        if top_k and top_k > 0:
+            scored_candidates = scored_candidates[:top_k]
+        
+        return jsonify({
+            'success': True,
+            'algorithm': ALGORITHM,
+            'scored_candidates': scored_candidates,
+            'count': len(scored_candidates)
+        })
+        
+    except Exception as e:
+        import traceback
+        print(f"ERROR in /api/score: {e}")
+        print(traceback.format_exc())
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
+
+
+@app.route('/api/recommend', methods=['GET', 'POST'])
+def recommend():
+    """
+    [LEGACY] Get recommendations from training dataset.
+    
+    Request Body (NEW FORMAT):
+    {
+        "history_contents": ["post title 1", "post text 2", ...],
+        "top_k": 10,              // optional, default: 10
+        "min_score": 0.0,         // optional, default: 0.0
+        "exclude_ids": []         // optional, IDs to exclude
+    }
+    
+    Legacy support (DEPRECATED):
+    {
+        "query": "single keyword search",
+        "top_k": 5
+    }
+    
+    Response:
+    {
+        "success": true,
+        "count": 10,
+        "algorithm": "TF-IDF",
+        "recommendations": [...]
+    }
+    """
+    try:
+        # Support both GET (legacy) and POST (new) requests
+        if request.method == 'GET':
+            # Legacy GET support with query parameters
+            query = request.args.get('q') or request.args.get('query')
+            if not query:
+                return jsonify({
+                    'success': False,
+                    'error': 'Missing required parameter: q or query'
+                }), 400
+            
+            history_contents = [query]
+            top_k = int(request.args.get('top_k', 10))
+            min_score = float(request.args.get('min_score', 0.0))
+            exclude_ids = []
+            
+        else:
+            # POST request with JSON body
+            data = request.get_json()
+            
+            if not data:
+                return jsonify({
+                    'success': False,
+                    'error': 'Request body is required'
+                }), 400
+            
+            # Support both new and legacy POST formats
+            history_contents = data.get('history_contents')
+            
+            # Legacy support: convert query to history_contents
+            if not history_contents and 'query' in data:
+                history_contents = [data['query']]
+            
+            if not history_contents:
+                return jsonify({
+                    'success': False,
+                    'error': 'Missing required field: history_contents'
+                }), 400
+            
+            # Get parameters
+            top_k = data.get('top_k', 10)
+            min_score = data.get('min_score', 0.0)
+            exclude_ids = data.get('exclude_ids', [])
+        
+        # Validate parameters
+        if not isinstance(history_contents, list):
+            return jsonify({
+                'success': False,
+                'error': 'history_contents must be a list of strings'
             }), 400
         
         if not isinstance(top_k, int) or top_k < 1 or top_k > 100:
@@ -122,17 +238,21 @@ def recommend():
                 'error': 'min_score must be a number between 0 and 1'
             }), 400
         
-        # Get recommendations
-        recommendations = model.recommend(
-            query=query,
+        # Get recommendations using history-based algorithm
+        recommendations = model.recommend_from_history(
+            history_contents=history_contents,
             top_k=top_k,
-            min_score=min_score
+            min_score=min_score,
+            exclude_ids=exclude_ids
         )
+        
+        # Get model info
+        model_info = model.get_model_info()
         
         # Return response
         return jsonify({
             'success': True,
-            'query': query,
+            'algorithm': model_info.get('algorithm', 'Unknown'),
             'count': len(recommendations),
             'recommendations': recommendations
         })

@@ -11,7 +11,7 @@ plugins {
     id("androidx.baselineprofile")
     id("org.jetbrains.kotlin.plugin.compose") version "2.2.20"
     kotlin("plugin.serialization") version "2.2.20"
-
+    id("com.google.gms.google-services")
 }
 
 // Temp disabled until https://issuetracker.google.com/issues/430991549 fixed
@@ -226,6 +226,11 @@ dependencies {
     // Retrofit for recommendation API
     implementation("com.squareup.retrofit2:retrofit:2.11.0")
     implementation("com.squareup.retrofit2:converter-gson:2.11.0")
+
+    // Firebase Analytics for user behavior tracking
+    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
+    implementation("com.google.firebase:firebase-analytics-ktx")
+    implementation("com.google.firebase:firebase-firestore-ktx")
 
     // For custom logging plugin
     implementation("io.ktor:ktor-client-logging:3.3.0")
