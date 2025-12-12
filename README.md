@@ -182,12 +182,6 @@ This project followed Agile/Scrum practices across 6 sprints:
 
 **Total**: 8 user stories, 36 story points
 
-## 📄 Documentation
-
-- [Release 3 Summary](documents/release3.md) - Comprehensive project documentation
-- [Test Documentation](documents/Sprint%202/TEST_DOCUMENTATION.md) - Testing strategy and coverage
-- [Sprint 2 Integration](documents/Sprint%202/INTEGRATION_COMPLETE.md) - Search history implementation
-
 ## Features
 
 - Open-source, [AGPL License](/LICENSE)
