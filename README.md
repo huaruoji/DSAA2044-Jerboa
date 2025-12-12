@@ -28,11 +28,11 @@
 
 ## About This Project
 
-This is an enhanced version of Jerboa developed as part of the **DSAA2044: Mobile Application Development** course at HKUST(GZ). The project extends the original Lemmy client with advanced AI and data science features.
+This is an enhanced version of Jerboa developed as part of the **DSAA2044: Data Science Project** course at HKUST(GZ). The project extends the original Lemmy client with advanced AI and data science features.
 
 ### 🎯 Course Project Information
 
-- **Course**: DSAA2044 - Mobile Application Development
+- **Course**: DSAA2044 - Data Science Project
 - **Institution**: Hong Kong University of Science and Technology (Guangzhou)
 - **Team**: Jerboa-Team 5
 - **Members**: 
