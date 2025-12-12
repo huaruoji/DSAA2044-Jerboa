@@ -208,12 +208,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: Android-Release-APK # Must exactly match the upload-artifact name
+          path: ./artifacts
 
       # Step 2: Create Release
       - name: Create Release and Upload APK
         uses: softprops/action-gh-release@v1
         with:
           # The 'files' field specifies which files to upload as release assets
-          files: app-release.apk
+          files: artifacts/app-release.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
