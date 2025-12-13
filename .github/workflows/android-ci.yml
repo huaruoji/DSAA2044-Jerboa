@@ -183,17 +183,37 @@ jobs:
           }
           EOF
 
+      # Cache Gradle dependencies for faster builds
+      - name: Cache Gradle packages
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Build Release APK
         run: ./gradlew assembleRelease
 
+      # Debug: List APK output directory
+      - name: List APK files
+        run: |
+          echo "Listing app/build/outputs/apk/release/"
+          ls -la app/build/outputs/apk/release/ || echo "Directory not found"
+          echo "Finding all APK files:"
+          find app/build/outputs -name "*.apk" -type f
+
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
           name: Android-Release-APK
-          path: app/build/outputs/apk/release/app-release.apk
+          path: app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
 
   # Third job: Create GitHub Release
   # Runs only if the 'release-build' succeeds AND the workflow was triggered by a Git tag
@@ -210,11 +230,22 @@ jobs:
           name: Android-Release-APK # Must exactly match the upload-artifact name
           path: ./artifacts
 
+      # Debug: List downloaded artifacts
+      - name: List downloaded artifacts
+        run: |
+          echo "Listing artifacts directory:"
+          ls -la artifacts/
+          echo "Finding all APK files:"
+          find artifacts/ -name "*.apk" -type f
+
       # Step 2: Create Release
       - name: Create Release and Upload APK
         uses: softprops/action-gh-release@v1
         with:
           # The 'files' field specifies which files to upload as release assets
-          files: artifacts/app-release.apk
+          files: artifacts/*.apk
+          draft: false
+          prerelease: false
+          generate_release_notes: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
